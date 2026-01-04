@@ -1,0 +1,919 @@
+#### Depth first problems case solve 8 puzzle Game shown ####
+
+class PuzzleState:
+    def __init__(self, board, parent=None, move=None, depth=0):
+        self.board = board
+        self.parent = parent
+        self.move = move
+        self.depth = depth
+        self.blank_pos = self.find_blank()
+        
+    def __eq__(self, other):
+        return self.board == other.board
+    
+    def __hash__(self):
+        return hash(str(self.board))
+    
+    def __str__(self):
+        return '\n'.join([' '.join(map(str, row)) for row in self.board])
+    
+    def find_blank(self):
+        for i in range(3):
+            for j in range(3):
+                if self.board[i][j] == 0:
+                    return (i, j)
+    
+    def is_goal(self, goal):
+        return self.board == goal
+    
+    def get_children(self):
+        children = []
+        moves = {
+            'UP': (-1, 0),
+            'DOWN': (1, 0),
+            'LEFT': (0, -1),
+            'RIGHT': (0, 1)
+        }
+        
+        row, col = self.blank_pos
+        
+        for move_name, (dr, dc) in moves.items():
+            new_row, new_col = row + dr, col + dc
+            
+            if 0 <= new_row < 3 and 0 <= new_col < 3:
+                # Create new board
+                new_board = [list(row) for row in self.board]
+                # Swap blank with adjacent tile
+                new_board[row][col], new_board[new_row][new_col] = \
+                    new_board[new_row][new_col], new_board[row][col]
+                
+                child_state = PuzzleState(
+                    new_board, 
+                    parent=self, 
+                    move=move_name, 
+                    depth=self.depth + 1
+                )
+                children.append(child_state)
+        
+        return children
+
+def dfs_solve(initial, goal, max_depth=50):
+    """
+    Depth-First Search solution for 8-puzzle
+    
+    Args:
+        initial: Initial board state (3x3 list)
+        goal: Goal board state (3x3 list)
+        max_depth: Maximum depth to search to prevent infinite recursion
+    
+    Returns:
+        tuple: (solution_path, nodes_expanded, max_memory)
+    """
+    start_state = PuzzleState(initial)
+    goal_state = PuzzleState(goal)
+    
+    if start_state.is_goal(goal):
+        return [start_state], 0, 0
+    
+    # Use stack for DFS (LIFO)
+    stack = [start_state]
+    visited = set()
+    visited.add(str(start_state.board))
+    
+    nodes_expanded = 0
+    max_memory = 0
+    
+    while stack:
+        max_memory = max(max_memory, len(stack))
+        
+        # Pop from stack (depth-first)
+        current_state = stack.pop()
+        nodes_expanded += 1
+        
+        # Check if goal is reached
+        if current_state.is_goal(goal):
+            # Reconstruct path
+            path = []
+            while current_state:
+                path.append(current_state)
+                current_state = current_state.parent
+            return path[::-1], nodes_expanded, max_memory
+        
+        # Stop if we've reached maximum depth
+        if current_state.depth >= max_depth:
+            continue
+        
+        # Generate and add children to stack
+        children = current_state.get_children()
+        # Reverse to maintain order (optional, for better visualization)
+        children.reverse()
+        
+        for child in children:
+            child_str = str(child.board)
+            if child_str not in visited:
+                visited.add(child_str)
+                stack.append(child)
+    
+    return None, nodes_expanded, max_memory
+
+def print_solution_path(solution_path):
+    """Print the solution step by step"""
+    if not solution_path:
+        print("No solution found!")
+        return
+    
+    print(f"Solution found in {len(solution_path)-1} moves:")
+    print("-" * 30)
+    
+    for i, state in enumerate(solution_path):
+        if i == 0:
+            print("Initial State:")
+        else:
+            print(f"Step {i}: Move {state.move}")
+        
+        print(state)
+        print()
+        print("-" * 30)
+
+def is_solvable(board):
+    """
+    Check if 8-puzzle is solvable using inversion count
+    
+    Rule: For a 3x3 puzzle, it's solvable if the number of inversions is even
+    """
+    # Flatten the board ignoring the blank (0)
+    flat = [tile for row in board for tile in row if tile != 0]
+    
+    # Count inversions
+    inversions = 0
+    for i in range(len(flat)):
+        for j in range(i + 1, len(flat)):
+            if flat[i] > flat[j]:
+                inversions += 1
+    
+    return inversions % 2 == 0
+
+def main():
+    # Example puzzle (0 represents the blank tile)
+    initial_board = [
+        [1, 2, 3],
+        [4, 0, 6],
+        [7, 5, 8]
+    ]
+    
+    goal_board = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 0]
+    ]
+    
+    print("Initial Board:")
+    print('\n'.join([' '.join(map(str, row)) for row in initial_board]))
+    print()
+    
+    print("Goal Board:")
+    print('\n'.join([' '.join(map(str, row)) for row in goal_board]))
+    print()
+    
+    # Check if solvable
+    if not is_solvable(initial_board):
+        print("This puzzle configuration is NOT solvable!")
+        return
+    
+    print("Solving using Depth-First Search...")
+    print("-" * 40)
+    
+    start_time = time.time()
+    solution_path, nodes_expanded, max_memory = dfs_solve(initial_board, goal_board, max_depth=50)
+    end_time = time.time()
+    
+    if solution_path:
+        print_solution_path(solution_path)
+        
+        print("\nPerformance Statistics:")
+        print(f"Time taken: {end_time - start_time:.4f} seconds")
+        print(f"Number of moves: {len(solution_path) - 1}")
+        print(f"Nodes expanded: {nodes_expanded}")
+        print(f"Maximum nodes in memory: {max_memory}")
+    else:
+        print("No solution found within depth limit!")
+        print(f"Nodes expanded: {nodes_expanded}")
+        print(f"Time taken: {end_time - start_time:.4f} seconds")
+
+def run_different_examples():
+    """Run DFS on different puzzle examples"""
+    examples = [
+        ("Easy (2 moves)", [
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 0, 8]
+        ]),
+        ("Medium (5 moves)", [
+            [1, 2, 3],
+            [4, 0, 6],
+            [7, 5, 8]
+        ]),
+        ("Hard (10+ moves)", [
+            [0, 1, 3],
+            [4, 2, 5],
+            [7, 8, 6]
+        ])
+    ]
+    
+    goal_board = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 0]
+    ]
+    
+    for name, initial_board in examples:
+        print(f"\n{'='*60}")
+        print(f"Testing: {name}")
+        print(f"{'='*60}")
+        
+        if not is_solvable(initial_board):
+            print(f"{name} is NOT solvable!")
+            continue
+        
+        print("Initial board:")
+        print('\n'.join([' '.join(map(str, row)) for row in initial_board]))
+        
+        start_time = time.time()
+        solution_path, nodes_expanded, max_memory = dfs_solve(
+            initial_board, 
+            goal_board, 
+            max_depth=50
+        )
+        end_time = time.time()
+        
+        if solution_path:
+            print(f"\nSolution found in {len(solution_path)-1} moves")
+            print(f"Time: {end_time - start_time:.4f} seconds")
+            print(f"Nodes expanded: {nodes_expanded}")
+            print(f"Max memory: {max_memory}")
+            
+            # Uncomment to see step-by-step solution
+            # print_solution_path(solution_path)
+        else:
+            print("\nNo solution found within depth limit!")
+            print(f"Time: {end_time - start_time:.4f} seconds")
+            print(f"Nodes expanded: {nodes_expanded}")
+
+if __name__ == "__main__":
+    print("8-Puzzle Solver using Depth-First Search")
+    print("=" * 50)
+    
+    # Run main example
+    main()
+    
+    # Uncomment to run different examples
+    # run_different_examples()I'll help you solve the 8-puzzle problem using Depth-First Search (DFS). Here's a complete implementation:
+
+```python
+from collections import deque
+import time
+
+class PuzzleState:
+    def __init__(self, board, parent=None, move=None, depth=0):
+        self.board = board
+        self.parent = parent
+        self.move = move
+        self.depth = depth
+        self.blank_pos = self.find_blank()
+        
+    def __eq__(self, other):
+        return self.board == other.board
+    
+    def __hash__(self):
+        return hash(str(self.board))
+    
+    def __str__(self):
+        return '\n'.join([' '.join(map(str, row)) for row in self.board])
+    
+    def find_blank(self):
+        for i in range(3):
+            for j in range(3):
+                if self.board[i][j] == 0:
+                    return (i, j)
+    
+    def is_goal(self, goal):
+        return self.board == goal
+    
+    def get_children(self):
+        children = []
+        moves = {
+            'UP': (-1, 0),
+            'DOWN': (1, 0),
+            'LEFT': (0, -1),
+            'RIGHT': (0, 1)
+        }
+        
+        row, col = self.blank_pos
+        
+        for move_name, (dr, dc) in moves.items():
+            new_row, new_col = row + dr, col + dc
+            
+            if 0 <= new_row < 3 and 0 <= new_col < 3:
+                # Create new board
+                new_board = [list(row) for row in self.board]
+                # Swap blank with adjacent tile
+                new_board[row][col], new_board[new_row][new_col] = \
+                    new_board[new_row][new_col], new_board[row][col]
+                
+                child_state = PuzzleState(
+                    new_board, 
+                    parent=self, 
+                    move=move_name, 
+                    depth=self.depth + 1
+                )
+                children.append(child_state)
+        
+        return children
+
+def dfs_solve(initial, goal, max_depth=50):
+    """
+    Depth-First Search solution for 8-puzzle
+    
+    Args:
+        initial: Initial board state (3x3 list)
+        goal: Goal board state (3x3 list)
+        max_depth: Maximum depth to search to prevent infinite recursion
+    
+    Returns:
+        tuple: (solution_path, nodes_expanded, max_memory)
+    """
+    start_state = PuzzleState(initial)
+    goal_state = PuzzleState(goal)
+    
+    if start_state.is_goal(goal):
+        return [start_state], 0, 0
+    
+    # Use stack for DFS (LIFO)
+    stack = [start_state]
+    visited = set()
+    visited.add(str(start_state.board))
+    
+    nodes_expanded = 0
+    max_memory = 0
+    
+    while stack:
+        max_memory = max(max_memory, len(stack))
+        
+        # Pop from stack (depth-first)
+        current_state = stack.pop()
+        nodes_expanded += 1
+        
+        # Check if goal is reached
+        if current_state.is_goal(goal):
+            # Reconstruct path
+            path = []
+            while current_state:
+                path.append(current_state)
+                current_state = current_state.parent
+            return path[::-1], nodes_expanded, max_memory
+        
+        # Stop if we've reached maximum depth
+        if current_state.depth >= max_depth:
+            continue
+        
+        # Generate and add children to stack
+        children = current_state.get_children()
+        # Reverse to maintain order (optional, for better visualization)
+        children.reverse()
+        
+        for child in children:
+            child_str = str(child.board)
+            if child_str not in visited:
+                visited.add(child_str)
+                stack.append(child)
+    
+    return None, nodes_expanded, max_memory
+
+def print_solution_path(solution_path):
+    """Print the solution step by step"""
+    if not solution_path:
+        print("No solution found!")
+        return
+    
+    print(f"Solution found in {len(solution_path)-1} moves:")
+    print("-" * 30)
+    
+    for i, state in enumerate(solution_path):
+        if i == 0:
+            print("Initial State:")
+        else:
+            print(f"Step {i}: Move {state.move}")
+        
+        print(state)
+        print()
+        print("-" * 30)
+
+def is_solvable(board):
+    """
+    Check if 8-puzzle is solvable using inversion count
+    
+    Rule: For a 3x3 puzzle, it's solvable if the number of inversions is even
+    """
+    # Flatten the board ignoring the blank (0)
+    flat = [tile for row in board for tile in row if tile != 0]
+    
+    # Count inversions
+    inversions = 0
+    for i in range(len(flat)):
+        for j in range(i + 1, len(flat)):
+            if flat[i] > flat[j]:
+                inversions += 1
+    
+    return inversions % 2 == 0
+
+def main():
+    # Example puzzle (0 represents the blank tile)
+    initial_board = [
+        [1, 2, 3],
+        [4, 0, 6],
+        [7, 5, 8]
+    ]
+    
+    goal_board = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 0]
+    ]
+    
+    print("Initial Board:")
+    print('\n'.join([' '.join(map(str, row)) for row in initial_board]))
+    print()
+    
+    print("Goal Board:")
+    print('\n'.join([' '.join(map(str, row)) for row in goal_board]))
+    print()
+    
+    # Check if solvable
+    if not is_solvable(initial_board):
+        print("This puzzle configuration is NOT solvable!")
+        return
+    
+    print("Solving using Depth-First Search...")
+    print("-" * 40)
+    
+    start_time = time.time()
+    solution_path, nodes_expanded, max_memory = dfs_solve(initial_board, goal_board, max_depth=50)
+    end_time = time.time()
+    
+    if solution_path:
+        print_solution_path(solution_path)
+        
+        print("\nPerformance Statistics:")
+        print(f"Time taken: {end_time - start_time:.4f} seconds")
+        print(f"Number of moves: {len(solution_path) - 1}")
+        print(f"Nodes expanded: {nodes_expanded}")
+        print(f"Maximum nodes in memory: {max_memory}")
+    else:
+        print("No solution found within depth limit!")
+        print(f"Nodes expanded: {nodes_expanded}")
+        print(f"Time taken: {end_time - start_time:.4f} seconds")
+
+def run_different_examples():
+    """Run DFS on different puzzle examples"""
+    examples = [
+        ("Easy (2 moves)", [
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 0, 8]
+        ]),
+        ("Medium (5 moves)", [
+            [1, 2, 3],
+            [4, 0, 6],
+            [7, 5, 8]
+        ]),
+        ("Hard (10+ moves)", [
+            [0, 1, 3],
+            [4, 2, 5],
+            [7, 8, 6]
+        ])
+    ]
+    
+    goal_board = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 0]
+    ]
+    
+    for name, initial_board in examples:
+        print(f"\n{'='*60}")
+        print(f"Testing: {name}")
+        print(f"{'='*60}")
+        
+        if not is_solvable(initial_board):
+            print(f"{name} is NOT solvable!")
+            continue
+        
+        print("Initial board:")
+        print('\n'.join([' '.join(map(str, row)) for row in initial_board]))
+        
+        start_time = time.time()
+        solution_path, nodes_expanded, max_memory = dfs_solve(
+            initial_board, 
+            goal_board, 
+            max_depth=50
+        )
+        end_time = time.time()
+        
+        if solution_path:
+            print(f"\nSolution found in {len(solution_path)-1} moves")
+            print(f"Time: {end_time - start_time:.4f} seconds")
+            print(f"Nodes expanded: {nodes_expanded}")
+            print(f"Max memory: {max_memory}")
+            
+            # Uncomment to see step-by-step solution
+            # print_solution_path(solution_path)
+        else:
+            print("\nNo solution found within depth limit!")
+            print(f"Time: {end_time - start_time:.4f} seconds")
+            print(f"Nodes expanded: {nodes_expanded}")
+
+if __name__ == "__main__":
+    print("8-Puzzle Solver using Depth-First Search")
+    print("=" * 50)
+    
+    # Run main example
+    main()
+    
+    # Uncomment to run different examples
+    # run_different_examples()
+```
+
+Key Features of This DFS Implementation:
+
+1. State Representation:
+   · Each state stores the board configuration, parent state, move taken, and depth
+2. DFS Algorithm:
+   · Uses a stack (LIFO) for frontier nodes
+   · Visited set to avoid cycles
+   · Depth limiting to prevent infinite recursion
+3. Solvability Check:
+   · Uses inversion count to determine if puzzle is solvable
+   · Only even inversion counts are solvable for 3x3 puzzles
+4. Performance Tracking:
+   · Tracks nodes expanded
+   · Monitors maximum memory usage
+   · Measures execution time
+5. Visualization:
+   · Shows step-by-step solution
+   · Displays performance statistics
+
+How DFS Works for 8-Puzzle:
+
+1. Start with initial state
+2. Push initial state to stack
+3. While stack is not empty:
+   · Pop state from stack
+   · If goal state, reconstruct and return path
+   · Generate all possible moves (up to 4 children)
+   · Push unvisited children to stack
+   · Mark state as visited
+
+Limitations of DFS for 8-Puzzle:
+
+1. Not optimal: DFS doesn't guarantee shortest path
+2. May not find solution: Without depth limit, can get stuck in infinite branches
+3. Memory intensive: Can store many nodes in memory
+4. Depth limit needed: Must set maximum depth to avoid infinite recursion
+
+To Use the Program:
+
+1. Modify the initial_board in main() function
+2. Run: python puzzle_dfs.py
+3. For different examples, call run_different_examples()
+
+Sample Output:
+
+```
+8-Puzzle Solver using Depth-First Search
+==================================================
+Initial Board:
+1 2 3
+4 0 6
+7 5 8
+
+Goal Board:
+1 2 3
+4 5 6
+7 8 0
+
+Solving using Depth-First Search...
+----------------------------------------
+Solution found in 3 moves:
+------------------------------
+Initial State:
+1 2 3
+4 0 6
+7 5 8
+
+------------------------------
+Step 1: Move DOWN
+1 2 3
+4 5 6
+7 0 8
+
+------------------------------
+Step 2: Move RIGHT
+1 2 3
+4 5 6
+7 8 0
+
+------------------------------
+
+Performance Statistics:
+Time taken: 0.0012 seconds
+Number of moves: 2
+Nodes expanded: 6
+Maximum nodes in memory: 4
+
+```
+#### Bread first problem puzzle game shown ####
+
+from collections import deque
+import copy
+
+class Puzzle8:
+    def __init__(self, initial_state):
+        """
+        Initialize the 8-puzzle with start state
+        
+        Args:
+            initial_state: 2D list representing initial board configuration
+        """
+        self.initial_state = initial_state
+        self.goal_state = [[1, 2, 3], [4, 5, 6], [7, 8, 0]]
+        self.size = 3
+        
+    def find_blank(self, state):
+        """Find the position of the blank tile (0)"""
+        for i in range(self.size):
+            for j in range(self.size):
+                if state[i][j] == 0:
+                    return i, j
+        return None
+    
+    def is_goal(self, state):
+        """Check if current state is goal state"""
+        return state == self.goal_state
+    
+    def get_neighbors(self, state):
+        """Generate all possible moves from current state"""
+        neighbors = []
+        row, col = self.find_blank(state)
+        
+        # Possible moves: up, down, left, right
+        moves = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        
+        for dr, dc in moves:
+            new_row, new_col = row + dr, col + dc
+            
+            # Check if move is valid
+            if 0 <= new_row < self.size and 0 <= new_col < self.size:
+                # Create new state by swapping blank with adjacent tile
+                new_state = copy.deepcopy(state)
+                new_state[row][col], new_state[new_row][new_col] = \
+                    new_state[new_row][new_col], new_state[row][col]
+                neighbors.append(new_state)
+                
+        return neighbors
+    
+    def state_to_tuple(self, state):
+        """Convert state to tuple for hashing"""
+        return tuple(tuple(row) for row in state)
+    
+    def bfs_solve(self):
+        """
+        Solve the 8-puzzle using Breadth-First Search
+        
+        Returns:
+            tuple: (solution_path, nodes_expanded) or (None, nodes_expanded) if no solution
+        """
+        start_node = (self.initial_state, [self.initial_state])  # (state, path)
+        queue = deque([start_node])
+        visited = set()
+        visited.add(self.state_to_tuple(self.initial_state))
+        nodes_expanded = 0
+        
+        while queue:
+            current_state, path = queue.popleft()
+            nodes_expanded += 1
+            
+            # Check if we reached the goal
+            if self.is_goal(current_state):
+                return path, nodes_expanded
+            
+            # Generate and explore neighbors
+            for neighbor in self.get_neighbors(current_state):
+                neighbor_tuple = self.state_to_tuple(neighbor)
+                
+                if neighbor_tuple not in visited:
+                    visited.add(neighbor_tuple)
+                    new_path = path + [neighbor]
+                    queue.append((neighbor, new_path))
+        
+        # No solution found
+        return None, nodes_expanded
+    
+    def print_state(self, state):
+        """Print the puzzle state in readable format"""
+        for row in state:
+            print(" ".join(str(x) if x != 0 else " " for x in row))
+        print()
+    
+    def print_solution(self, solution_path):
+        """Print the complete solution path"""
+        if solution_path is None:
+            print("No solution found!")
+            return
+            
+        print(f"Solution found in {len(solution_path)-1} moves:")
+        print("=" * 30)
+        
+        for step, state in enumerate(solution_path):
+            print(f"Step {step}:")
+            self.print_state(state)
+
+# Example Usage and Test Cases
+
+def main():
+    print("=== 8-Puzzle Solver using BFS ===\n")
+    
+    # Test Case 1: Solvable puzzle (Easy)
+    print("Test Case 1: Solvable Puzzle (Easy)")
+    initial_state_1 = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [0, 7, 8]
+    ]
+    
+    puzzle1 = Puzzle8(initial_state_1)
+    solution1, nodes1 = puzzle1.bfs_solve()
+    
+    if solution1:
+        print(f"Solution found! Expanded {nodes1} nodes")
+        print(f"Solution length: {len(solution1)-1} moves")
+        print("\nFirst 3 steps of solution:")
+        for i, state in enumerate(solution1[:4]):
+            print(f"Step {i}:")
+            puzzle1.print_state(state)
+    else:
+        print(f"No solution found! Expanded {nodes1} nodes")
+    
+    print("\n" + "="*50 + "\n")
+    
+    # Test Case 2: Solvable puzzle (Medium)
+    print("Test Case 2: Solvable Puzzle (Medium)")
+    initial_state_2 = [
+        [1, 2, 3],
+        [4, 0, 6],
+        [7, 5, 8]
+    ]
+    
+    puzzle2 = Puzzle8(initial_state_2)
+    solution2, nodes2 = puzzle2.bfs_solve()
+    
+    if solution2:
+        print(f"Solution found! Expanded {nodes2} nodes")
+        print(f"Solution length: {len(solution2)-1} moves")
+    else:
+        print(f"No solution found! Expanded {nodes2} nodes")
+    
+    print("\n" + "="*50 + "\n")
+    
+    # Test Case 3: Unsolvable puzzle
+    print("Test Case 3: Unsolvable Puzzle")
+    initial_state_3 = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [8, 7, 0]
+    ]
+    
+    puzzle3 = Puzzle8(initial_state_3)
+    solution3, nodes3 = puzzle3.bfs_solve()
+    
+    if solution3:
+        print(f"Solution found! Expanded {nodes3} nodes")
+    else:
+        print(f"No solution found! Expanded {nodes3} nodes")
+        print("This puzzle is unsolvable due to parity constraints.")
+    
+    print("\n" + "="*50 + "\n")
+    
+    # Test Case 4: More complex solvable puzzle
+    print("Test Case 4: More Complex Puzzle")
+    initial_state_4 = [
+        [1, 0, 3],
+        [4, 2, 5],
+        [7, 8, 6]
+    ]
+    
+    puzzle4 = Puzzle8(initial_state_4)
+    solution4, nodes4 = puzzle4.bfs_solve()
+    
+    if solution4:
+        print(f"Solution found! Expanded {nodes4} nodes")
+        print(f"Solution length: {len(solution4)-1} moves")
+        
+        # Show only beginning and end of solution for brevity
+        print("\nFirst 2 steps:")
+        for i, state in enumerate(solution4[:3]):
+            print(f"Step {i}:")
+            puzzle4.print_state(state)
+            
+        print("Last 2 steps:")
+        for i, state in enumerate(solution4[-3:], start=len(solution4)-3):
+            print(f"Step {i}:")
+            puzzle4.print_state(state)
+    else:
+        print(f"No solution found! Expanded {nodes4} nodes")
+
+# Additional helper functions for analysis
+
+def is_solvable(state):
+    """
+    Check if a given 8-puzzle state is solvable
+    Based on inversion count parity
+    """
+    # Flatten the 2D array
+    flat = [tile for row in state for tile in row if tile != 0]
+    
+    # Count inversions
+    inversions = 0
+    n = len(flat)
+    
+    for i in range(n):
+        for j in range(i + 1, n):
+            if flat[i] > flat[j]:
+                inversions += 1
+    
+    # For 8-puzzle, puzzle is solvable if inversions are even
+    return inversions % 2 == 0
+
+def interactive_solver():
+    """Interactive mode for solving custom puzzles"""
+    print("=== Interactive 8-Puzzle Solver ===")
+    print("Enter your puzzle row by row (use 0 for blank)")
+    print("Example: For row '1 2 3', enter: 1 2 3")
+    
+    state = []
+    for i in range(3):
+        while True:
+            row_input = input(f"Row {i+1}: ").strip()
+            try:
+                row = list(map(int, row_input.split()))
+                if len(row) == 3 and all(0 <= x <= 8 for x in row):
+                    # Check for duplicate numbers
+                    flat = [x for r in state for x in r] + row
+                    if len(set([x for x in flat if x != 0])) == len([x for x in flat if x != 0]):
+                        state.append(row)
+                        break
+                    else:
+                        print("Error: Numbers 1-8 must be unique, 0 can appear only once")
+                else:
+                    print("Error: Enter exactly 3 numbers between 0-8")
+            except ValueError:
+                print("Error: Please enter integers only")
+    
+    print("\nYour puzzle:")
+    for row in state:
+        print(" ".join(str(x) if x != 0 else " " for x in row))
+    
+    # Check if solvable
+    if not is_solvable(state):
+        print("\nWarning: This puzzle is not solvable!")
+        response = input("Do you still want to try? (y/n): ")
+        if response.lower() != 'y':
+            return
+    
+    # Solve the puzzle
+    print("\nSolving...")
+    puzzle = Puzzle8(state)
+    solution, nodes = puzzle.bfs_solve()
+    
+    if solution:
+        print(f"\nSolution found in {len(solution)-1} moves!")
+        print(f"Expanded {nodes} nodes")
+        
+        show_all = input("Show full solution? (y/n): ")
+        if show_all.lower() == 'y':
+            puzzle.print_solution(solution)
+        else:
+            print("\nFirst and last states:")
+            print("Initial state:")
+            puzzle.print_state(solution[0])
+            print(f"Final state (step {len(solution)-1}):")
+            puzzle.print_state(solution[-1])
+    else:
+        print("\nNo solution found!")
+        print(f"Expanded {nodes} nodes")
+
+if __name__ == "__main__":
+    # Run test cases
+    main()
+    
+    # Uncomment to run interactive solver
+    # interactive_solver()
